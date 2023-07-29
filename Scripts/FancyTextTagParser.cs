@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
-using Unity.VisualScripting;
 
 public static class FancyTextTagParser
 {
@@ -36,12 +35,11 @@ public static class FancyTextTagParser
             if (tagOpenIndexInUnparsedList == -1) { UnityEngine.Debug.LogError("Tag(s) missing opening tag!"); return parsedTags; }
 
             // Creating new parsed tag
-            int openTagIndexOffset = TotalMatchLengthAndSpacesUntil(text, unparsedTags[tagOpenIndexInUnparsedList].Index);
-            int closeTagIndexOffset = TotalMatchLengthAndSpacesUntil(text, unparsedTags[tagCloseIndexInUnparsedList].Index);
+            int openTagIndexOffset = TotalMatchLengthAndSpacesUntil(text, unparsedTags[tagOpenIndexInUnparsedList].Index) + 1; // honestly no clue why i have to offset 1 and 2 but it works so idc
+            int closeTagIndexOffset = TotalMatchLengthAndSpacesUntil(text, unparsedTags[tagCloseIndexInUnparsedList].Index) + 2;
 
             TextEffectParameter[] parameters = ParseParameters(unparsedTags[tagOpenIndexInUnparsedList].Value.Split(", "));
-
-            ParsedTag parsed = new ParsedTag(tagName, parameters, unparsedTags[tagOpenIndexInUnparsedList].Index - 1 - openTagIndexOffset, unparsedTags[tagCloseIndexInUnparsedList].Index - closeTagIndexOffset);
+            ParsedTag parsed = new ParsedTag(tagName, parameters, unparsedTags[tagOpenIndexInUnparsedList].Index - openTagIndexOffset, unparsedTags[tagCloseIndexInUnparsedList].Index - closeTagIndexOffset);
             parsedTags.Add(parsed);
 
             // Removing parsed tags from unparsed tag list
@@ -84,7 +82,9 @@ public static class FancyTextTagParser
 
         int matchTotal = 0;
         MatchCollection matches = wholeTagRX.Matches(untilText);
-        for (int i = 0; i < matches.Count; i++) { matchTotal += matches[i].Length + 2; }
+        for (int i = 0; i < matches.Count; i++) { matchTotal += matches[i].Length; }
+
+        UnityEngine.Debug.Log("Spaces: " + spaces + " | Match Length: " + matchTotal);
 
         return spaces + matchTotal;
     }
@@ -123,7 +123,6 @@ public static class FancyTextTagParser
         FancyTextTagParser.settingsAsset = settingsAsset;
         return wholeTagRX.Replace(input, new MatchEvaluator(FancyTextTagParser.ReplaceOnlyFancyTextTags)); 
     }
-
     static string ReplaceOnlyFancyTextTags(Match m)
     {
         string tagName = tagNameRX.Match(m.Value).Value;

@@ -41,7 +41,7 @@ public class FancyText : MonoBehaviour
 
     private void Start()
     {
-        defualtSettings = (FancyTextSettingsAsset)AssetDatabase.LoadAssetAtPath("Assets/Fancy Text/Default FancyText Settings Asset.asset", typeof(FancyTextSettingsAsset));
+        defualtSettings = (FancyTextSettingsAsset)AssetDatabase.LoadAssetAtPath("Assets/Fancy-Text/Default FancyText Settings Asset.asset", typeof(FancyTextSettingsAsset));
         SetNewText(textComponent.text);
     }
     
