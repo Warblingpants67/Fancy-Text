@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using TMPro;
 using UnityEngine;
 using UnityEditor;
@@ -15,8 +16,6 @@ public class FancyText : MonoBehaviour
     [SerializeField] FancyTextAppearEffect appearEffect;
 
     FancyTextSettingsAsset defualtSettings;
-
-    string currentText;
     Mesh originalMesh;
 
     // Edit Arrays
@@ -24,7 +23,7 @@ public class FancyText : MonoBehaviour
     Color[] editedColors;
 
     // Meshes
-    CharacterMesh[] characterMeshes;
+    [SerializeField] CharacterMesh[] characterMeshes;
 
     // Settings
     float timeBetweenCharacters = .025f;
@@ -38,6 +37,17 @@ public class FancyText : MonoBehaviour
     [Header("Text effect areas")]
     [SerializeField] List<CharacterEffectArea> updateCharacterEffectAreas;
     [SerializeField] List<CharacterEffectArea> fixedUpdateCharacterEffectAreas;
+
+    // Text
+    string parsedText;
+    string unparsedText;
+    string noSpacesParsedText;
+
+    public string ParsedText { get { return parsedText; } }
+    public string UnparsedText { get { return unparsedText; } }
+
+    // Coroutines
+    Coroutine displayTextCoroutine;
 
     private void Start()
     {
@@ -125,12 +135,19 @@ public class FancyText : MonoBehaviour
 
     public void SetNewText(string newText)
     {
+        Stopwatch sw = new Stopwatch();
+        sw.Start();
+
+        appearingCharacters.Clear();
+        textComponent.maxVisibleCharacters = 9999; // If not set high, text might not fully display even if max should allow all characters to display...
+        unparsedText = newText;
         textComponent.SetText(newText);
         textComponent.ForceMeshUpdate(); // mesh must be updated before you can get parsed text... TMPro why
         List<ParsedTag> parsedTags = FancyTextTagParser.ParseTags(textComponent.GetParsedText());
         textComponent.SetText(FancyTextTagParser.RemoveTags(newText, defualtSettings));
         textComponent.ForceMeshUpdate();
-        currentText = textComponent.GetParsedText();
+        parsedText = textComponent.GetParsedText();
+        noSpacesParsedText = parsedText.Replace(" ", "");
 
         originalMesh = textComponent.mesh;
 
@@ -143,6 +160,9 @@ public class FancyText : MonoBehaviour
 
         CreateCharacterMeshes();
         StartDisplayingText();
+
+        sw.Stop();
+        UnityEngine.Debug.Log("Time to set new text: " + sw.ElapsedMilliseconds + "ms");
     }
 
     void CreateEffectAreas(List<ParsedTag> parsedTags)
@@ -161,15 +181,15 @@ public class FancyText : MonoBehaviour
                 if (effect.runInFixedUpdate) { fixedUpdateCharacterEffectAreas.Add(newEffectArea); }
                 else { updateCharacterEffectAreas.Add(newEffectArea); }
             }
-        }    
+        }
     }
     void CreateCharacterMeshes()
     {
-        characterMeshes = new CharacterMesh[textComponent.mesh.vertexCount / 4];
+        characterMeshes = new CharacterMesh[noSpacesParsedText.Length];
 
         for (int i = 0; i < characterMeshes.Length; i++)
         {
-            characterMeshes[i] = new CharacterMesh(i * 4, textComponent.mesh.vertices, textComponent.mesh.colors);
+            characterMeshes[i] = new CharacterMesh(i * 4, textComponent.mesh.vertices, textComponent.mesh.colors, noSpacesParsedText[i]);
         }
     }
 
@@ -178,17 +198,18 @@ public class FancyText : MonoBehaviour
         textComponent.maxVisibleCharacters = 0;
         textFullyDisplayed = false;
 
-        StartCoroutine(DisplayText());
-
-        textFullyDisplayed = true;
+        if (displayTextCoroutine != null) { StopCoroutine(displayTextCoroutine); }
+        displayTextCoroutine = StartCoroutine(DisplayText());
     }
 
     IEnumerator DisplayText()
     {
+        appearingCharacters = new List<AppearingCharacter>();
         nonSpaceVisibleCharacters = 0;
-        for (int i = 0; i < currentText.Length; i++)
+
+        for (int i = 0; i < parsedText.Length; i++)
         {
-            char currentChar = currentText[i];
+            char currentChar = parsedText[i];
 
             if (currentChar != ' ')
             {
@@ -200,11 +221,16 @@ public class FancyText : MonoBehaviour
             OnNewCharacterDisplayed?.Invoke(currentChar);
             yield return new WaitForSeconds(timeBetweenCharacters);
         }
+
+        textFullyDisplayed = true;
     }
 }
 
+[System.Serializable]
 public struct CharacterMesh
 {
+    public readonly char character;
+    [SerializeField] string name; // for easier looking in arrays in editor (for now, custom editor later?)
     public int startIndex;
     public bool appearing;
 
@@ -218,28 +244,30 @@ public struct CharacterMesh
 
     public Vector3 OriginalVerticeAveragePos { get { return (origVerts[0] + origVerts[1] + origVerts[2] + origVerts[3]) / 4; } }
 
-    public CharacterMesh(int startIndex, Vector3[] allVertices, Color[] allColors)
+    public CharacterMesh(int startIndex, Vector3[] allVertices, Color[] allColors, char character)
     {
+        this.character = character;
+        this.name = character.ToString();
         this.startIndex = startIndex;
         appearing = false;
 
-        vertices = new Vector3[4];
-        vertices[0] = allVertices[startIndex];
-        vertices[1] = allVertices[startIndex + 1];
-        vertices[2] = allVertices[startIndex + 2];
-        vertices[3] = allVertices[startIndex + 3];
-
         origVerts = new Vector3[4];
-        origVerts = (Vector3[])vertices.Clone();
+        origVerts[0] = allVertices[startIndex];
+        origVerts[1] = allVertices[startIndex + 1];
+        origVerts[2] = allVertices[startIndex + 2];
+        origVerts[3] = allVertices[startIndex + 3];
 
-        colors = new Color[4];
-        colors[0] = allColors[startIndex];
-        colors[1] = allColors[startIndex + 1];
-        colors[2] = allColors[startIndex + 2];
-        colors[3] = allColors[startIndex + 3];
+        vertices = new Vector3[4];
+        vertices = (Vector3[])origVerts.Clone();
 
         origColors = new Color[4];
-        origColors = (Color[])colors.Clone();
+        origColors[0] = allColors[startIndex];
+        origColors[1] = allColors[startIndex + 1];
+        origColors[2] = allColors[startIndex + 2];
+        origColors[3] = allColors[startIndex + 3];
+
+        colors = new Color[4];
+        colors = (Color[])origColors.Clone();
     }
 
     public void Add(Vector3 a)

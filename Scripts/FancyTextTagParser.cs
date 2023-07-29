@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
+using UnityEngine;
 
 public static class FancyTextTagParser
 {
@@ -83,8 +84,6 @@ public static class FancyTextTagParser
         int matchTotal = 0;
         MatchCollection matches = wholeTagRX.Matches(untilText);
         for (int i = 0; i < matches.Count; i++) { matchTotal += matches[i].Length; }
-
-        UnityEngine.Debug.Log("Spaces: " + spaces + " | Match Length: " + matchTotal);
 
         return spaces + matchTotal;
     }
