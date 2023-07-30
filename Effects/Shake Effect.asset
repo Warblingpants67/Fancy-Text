@@ -17,4 +17,4 @@ MonoBehaviour:
   parameters:
   - name: Strength
     value: 1
-  shakeChance: 0.4
+  shakeChance: 0.36

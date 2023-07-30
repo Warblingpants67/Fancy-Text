@@ -15,6 +15,7 @@ public class FancyText : MonoBehaviour
     [SerializeField] CharacterUnityEvent OnNewCharacterDisplayed;
     [Header("temp")]
     [SerializeField] FancyTextAppearEffect appearEffect;
+    [SerializeField] bool useAppearEffect;
 
     FancyTextSettingsAsset defualtSettings;
     Mesh originalMesh;
@@ -56,9 +57,11 @@ public class FancyText : MonoBehaviour
     // Coroutines
     Coroutine displayTextCoroutine;
 
+    public FancyTextSettingsAsset SettingsAsset { get { return defualtSettings; } }
+
     private void Start()
     {
-        defualtSettings = (FancyTextSettingsAsset)AssetDatabase.LoadAssetAtPath("Assets/Fancy-Text/Default FancyText Settings Asset.asset", typeof(FancyTextSettingsAsset));
+        defualtSettings = (FancyTextSettingsAsset)Resources.Load("Default FancyText Settings Asset");
         SetNewText(textComponent.text);
     }
     
@@ -242,11 +245,23 @@ public class FancyText : MonoBehaviour
 
     public void StartDisplayingText()
     {
-        textComponent.maxVisibleCharacters = 0;
-        textFullyDisplayed = false;
+        updateEditedMeshes = new List<int>();
+        fixedUpdateEditedMeshes = new List<int>();
 
-        if (displayTextCoroutine != null) { StopCoroutine(displayTextCoroutine); }
-        displayTextCoroutine = StartCoroutine(DisplayText());
+        if (useAppearEffect)
+        {
+            textComponent.maxVisibleCharacters = 0;
+            textFullyDisplayed = false;
+
+            if (displayTextCoroutine != null) { StopCoroutine(displayTextCoroutine); }
+            displayTextCoroutine = StartCoroutine(DisplayText());
+        }
+        else
+        {
+            nonSpaceVisibleCharacters = noSpacesParsedText.Length;
+            textComponent.maxVisibleCharacters = parsedText.Length;
+            textFullyDisplayed = true;
+        }
     }
 
     IEnumerator DisplayText()
@@ -281,13 +296,17 @@ public struct CharacterMesh
     public int startIndex;
     public bool appearing;
 
-    // Original Data
+    // Original data
     public readonly Vector3[] origVerts;
     public readonly Color[] origColors;
 
     // Editable arrays
     public Vector3[] vertices;
     public Color[] colors;
+
+    // Saved data
+    Dictionary<string, Vector3[]> savedVector3Data;
+    Dictionary<string, Color[]> savedColorData;
 
     public Vector3 OriginalVerticeAveragePos { get { return (origVerts[0] + origVerts[1] + origVerts[2] + origVerts[3]) / 4; } }
 
@@ -315,6 +334,9 @@ public struct CharacterMesh
 
         colors = new Color[4];
         colors = (Color[])origColors.Clone();
+
+        savedVector3Data = new Dictionary<string, Vector3[]>();
+        savedColorData = new Dictionary<string,  Color[]>();
     }
 
     public void ResetVerticesToOriginalVertices() { vertices = (Vector3[])origVerts.Clone(); }
@@ -335,6 +357,45 @@ public struct CharacterMesh
             vertices[i] += mc.verticeChanges[i];
             colors[i] += mc.colorChanges[i];
         }
+    }
+
+    // Saved data
+
+    public void SaveVector3Data(string key, Vector3[] data)
+    {
+        if (savedVector3Data.ContainsKey(key))
+        {
+            savedVector3Data[key] = data;
+        }
+        else { savedVector3Data.Add(key, data); }
+    }
+    public Vector3[] GetVector3Data(string key)
+    {
+        Vector3[] data = null;
+        if (savedVector3Data.TryGetValue(key, out data))
+        {
+            return data;
+        }
+
+        return data;
+    }
+
+    public void SaveColorData(string key, Color[] data)
+    {
+        if (savedColorData.ContainsKey(key))
+        {
+            savedColorData[key] = data;
+        }
+        else { savedColorData.Add(key, data); }
+    }
+    public Color[] GetColorData(string key)
+    {
+        if (savedColorData.ContainsKey(key))
+        {
+            return savedColorData[key];
+        }
+
+        return null;
     }
 
     // Overrides

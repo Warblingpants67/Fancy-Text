@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -7,6 +6,9 @@ public class FancyTextSettingsAsset : ScriptableObject
 {
     [SerializeField] FancyTextAppearEffect[] textAppearEffects;
     [SerializeField] FancyTextEffect[] textEffects;
+
+    public FancyTextAppearEffect[] TextAppearEffects { get { return textAppearEffects; } }
+    public FancyTextEffect[] TextEffects { get { return textEffects; } }
 
     string[] OtherTags = new string[] { "Pause", };
     Dictionary<string, bool> recognizedTags = new Dictionary<string, bool>();
