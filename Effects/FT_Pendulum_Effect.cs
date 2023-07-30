@@ -1,7 +1,7 @@
 using UnityEngine;
 
-[CreateAssetMenu(fileName = "Pendulem Effect", menuName = "FancyText/Effects/Pendulem")]
-public class FT_Pendulem_Effect : FancyTextEffect
+[CreateAssetMenu(fileName = "Pendulum Effect", menuName = "FancyText/Effects/Pendulum")]
+public class FT_Pendulum_Effect : FancyTextEffect
 {
     [Header("Parameters")]
     [SerializeField] TextEffectParameter[] parameters;
@@ -9,13 +9,16 @@ public class FT_Pendulem_Effect : FancyTextEffect
 
     public override void ApplyEffect(ref CharacterMesh charVerts, float time, float[] parameters)
     {
-        float sin = Mathf.Sin(time);
+        float speed = parameters[0];
+        float degrees = parameters[1];
+
+        float sin = Mathf.Sin(time * speed);
 
         Vector3 origin = (charVerts.vertices[1] + charVerts.vertices[2]) / 2;
 
         for (int i = 0; i < 4; i++)
         {
-            charVerts.vertices[i] = FancyTextMathHelper.RotateVector3In2DSpace(charVerts.origVerts[i], origin, sin * 60);
+            charVerts.vertices[i] = FancyTextMathHelper.RotateVector3In2DSpace(charVerts.vertices[i], origin, sin * degrees);
         }
     }
 }

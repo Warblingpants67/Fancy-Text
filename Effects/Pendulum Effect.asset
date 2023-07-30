@@ -10,8 +10,12 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 83c07d68586841d4c9e81e684902b251, type: 3}
-  m_Name: Pendulem Effect
+  m_Name: Pendulum Effect
   m_EditorClassIdentifier: 
-  name: Pendulem
+  name: Pendulum
   runInFixedUpdate: 0
-  parameters: []
+  parameters:
+  - name: Speed
+    value: 1
+  - name: Degrees
+    value: 35
