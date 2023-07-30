@@ -14,17 +14,6 @@ public class FT_Wave_Effect : FancyTextEffect
         float stretch = parameters[2];
 
         Vector3 offset = new Vector3(0, Mathf.Sin((time * speed + charVerts.startIndex / 4) / stretch) * strength, 0);
-
-        if (charVerts.appearing)
-        {
-            charVerts.Add(offset);
-        }
-        else
-        {
-            for (int i = 0; i < 4; i++)
-            {
-                charVerts.vertices[i] = charVerts.origVerts[i] + offset;
-            }
-        }
+        charVerts.Add(offset);
     }
 }

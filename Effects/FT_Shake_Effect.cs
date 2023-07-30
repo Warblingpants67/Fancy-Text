@@ -15,18 +15,7 @@ public class FT_Shake_Effect : FancyTextEffect
         if (Random.Range(0f, 1f) <= shakeChance) // if met shake chance
         {
             Vector3 offset = new Vector3(Random.Range(-1f, 1f), Random.Range(-1f, 1f), Random.Range(-1f, 1f)) * strength;
-
-            if (charVerts.appearing)
-            {
-                charVerts.Add(offset);
-            }
-            else
-            {
-                for (int i = 0; i < 4; i++)
-                {
-                    charVerts.vertices[i] = charVerts.origVerts[i] + offset;
-                }
-            }
+            charVerts.Add(offset);
         }
     }
 }

@@ -4,6 +4,7 @@ using System.Diagnostics;
 using TMPro;
 using UnityEngine;
 using UnityEditor;
+using System.Linq;
 
 public class FancyText : MonoBehaviour
 {
@@ -27,7 +28,7 @@ public class FancyText : MonoBehaviour
 
     // Settings
     float timeBetweenCharacters = .025f;
-    float characterAppearTime = .09f;
+    float characterAppearTime = .1f;
 
     int nonSpaceVisibleCharacters = 0;
 
@@ -37,6 +38,12 @@ public class FancyText : MonoBehaviour
     [Header("Text effect areas")]
     [SerializeField] List<CharacterEffectArea> updateCharacterEffectAreas;
     [SerializeField] List<CharacterEffectArea> fixedUpdateCharacterEffectAreas;
+
+    // Edited Meshes
+    List<int> updateEditedMeshes = new List<int>();
+    List<int> fixedUpdateEditedMeshes = new List<int>();
+
+    [SerializeField] List<FixedUpdateCharacterMeshChange> fixedUpdateMeshChanges = new List<FixedUpdateCharacterMeshChange>();
 
     // Text
     string parsedText;
@@ -57,17 +64,38 @@ public class FancyText : MonoBehaviour
     
     private void Update()
     {
+        ResetUpdatedCharacterMeshesToOriginal();
+        updateEditedMeshes.Clear();
+
         ApplyCharacterAppearEffects();
         ApplyCharacterEffects(false);
+
+        ApplyFixedUpdateMeshChanges();
+
         ApplyCharacterMeshEditsToEditArrays();
         ApplyEditArraysToMesh();
     }
 
     private void FixedUpdate()
     {
+        ResetUpdatedCharacterMeshesToOriginal();
+        fixedUpdateEditedMeshes.Clear();
+        fixedUpdateMeshChanges.Clear();
+
         ApplyCharacterEffects(true);
+
+        GetFixedUpdateMeshChanges();
     }
 
+    void ResetUpdatedCharacterMeshesToOriginal()
+    {
+        List<int> indexList = fixedUpdateEditedMeshes.Union(updateEditedMeshes).ToList();
+        for (int i = 0; i < indexList.Count; i++)
+        {
+            characterMeshes[indexList[i]].ResetVerticesToOriginalVertices();
+            characterMeshes[indexList[i]].ResetColorsToOriginalColors();
+        }
+    }
     void ApplyCharacterAppearEffects()
     {
         for (int i = appearingCharacters.Count - 1; i >= 0 ; i--)
@@ -92,11 +120,12 @@ public class FancyText : MonoBehaviour
     }
     void ApplyCharacterEffects(bool fixedUpdate)
     {
-        List<CharacterEffectArea> listToUse = fixedUpdate ? ref fixedUpdateCharacterEffectAreas : ref updateCharacterEffectAreas;
+        List<CharacterEffectArea> characterEffectAreas = fixedUpdate ? ref fixedUpdateCharacterEffectAreas : ref updateCharacterEffectAreas;
+        List<int> updatedCharacterMeshList = fixedUpdate ? ref fixedUpdateEditedMeshes : ref updateEditedMeshes;
 
-        for (int i = 0; i < listToUse.Count; i++)
+        for (int i = 0; i < characterEffectAreas.Count; i++)
         {
-            CharacterEffectArea effectArea = listToUse[i];
+            CharacterEffectArea effectArea = characterEffectAreas[i];
 
             if (effectArea.span.x < nonSpaceVisibleCharacters) // if effect is currently visible
             {
@@ -105,6 +134,8 @@ public class FancyText : MonoBehaviour
                 for (int j = effectArea.span.x; j < max; j++)
                 {
                     effectArea.effect.ApplyEffect(ref characterMeshes[j], Time.time, effectArea.resolvedParameters);
+
+                    if (!updatedCharacterMeshList.Contains(j)) { updatedCharacterMeshList.Add(j); }
                 }
             }
         }
@@ -131,6 +162,22 @@ public class FancyText : MonoBehaviour
         originalMesh.vertices = editedVertices;
         originalMesh.colors = editedColors;
         textComponent.canvasRenderer.SetMesh(originalMesh);
+    }
+    void GetFixedUpdateMeshChanges()
+    {
+        for (int i = 0; i < fixedUpdateEditedMeshes.Count; i++)
+        {
+            int meshIndex = fixedUpdateEditedMeshes[i];
+            fixedUpdateMeshChanges.Add(new FixedUpdateCharacterMeshChange(meshIndex, characterMeshes[meshIndex]));
+        }
+    }
+    void ApplyFixedUpdateMeshChanges()
+    {
+        for (int i = 0; i < fixedUpdateMeshChanges.Count; i++)
+        {
+            int meshIndex = fixedUpdateMeshChanges[i].meshIndex;
+            characterMeshes[meshIndex].ApplyFixedUpdateChange(fixedUpdateMeshChanges[i]);
+        }
     }
 
     public void SetNewText(string newText)
@@ -234,13 +281,13 @@ public struct CharacterMesh
     public int startIndex;
     public bool appearing;
 
-    // Editable arrays
-    public Vector3[] vertices;
-    public Color[] colors;
-
     // Original Data
     public readonly Vector3[] origVerts;
     public readonly Color[] origColors;
+
+    // Editable arrays
+    public Vector3[] vertices;
+    public Color[] colors;
 
     public Vector3 OriginalVerticeAveragePos { get { return (origVerts[0] + origVerts[1] + origVerts[2] + origVerts[3]) / 4; } }
 
@@ -270,6 +317,9 @@ public struct CharacterMesh
         colors = (Color[])origColors.Clone();
     }
 
+    public void ResetVerticesToOriginalVertices() { vertices = (Vector3[])origVerts.Clone(); }
+    public void ResetColorsToOriginalColors() { colors = (Color[])origColors.Clone(); }
+
     public void Add(Vector3 a)
     {
         for (int i = 0; i < vertices.Length; i++)
@@ -277,6 +327,17 @@ public struct CharacterMesh
             vertices[i] = vertices[i] + a;
         }
     }
+
+    public void ApplyFixedUpdateChange(FixedUpdateCharacterMeshChange mc)
+    {
+        for (int i = 0; i < 4; i++)
+        {
+            vertices[i] += mc.verticeChanges[i];
+            colors[i] += mc.colorChanges[i];
+        }
+    }
+
+    // Overrides
 
     public override string ToString()
     {
@@ -289,6 +350,28 @@ public struct CharacterMesh
 
         output += "]";
         return output;
+    }
+}
+
+[System.Serializable]
+public struct FixedUpdateCharacterMeshChange
+{
+    public  int meshIndex;
+    public Vector3[] verticeChanges;
+    public  Color[] colorChanges;
+
+    public FixedUpdateCharacterMeshChange(int index, CharacterMesh characterMesh)
+    {
+        meshIndex = index;
+
+        verticeChanges = new Vector3[4];
+        colorChanges = new Color[4];
+
+        for (int i = 0; i < 4; i++)
+        {
+            verticeChanges[i] = characterMesh.vertices[i] - characterMesh.origVerts[i];
+            colorChanges[i] = characterMesh.colors[i] - characterMesh.origColors[i];
+        }
     }
 }
 
