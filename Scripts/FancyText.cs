@@ -1,10 +1,10 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using TMPro;
 using UnityEngine;
 using UnityEditor;
 using System.Linq;
+using System;
 
 public class FancyText : MonoBehaviour
 {
@@ -185,8 +185,7 @@ public class FancyText : MonoBehaviour
 
     public void SetNewText(string newText)
     {
-        Stopwatch sw = new Stopwatch();
-        sw.Start();
+        EasyStopwatch sw = new EasyStopwatch("set new text");
 
         appearingCharacters.Clear();
         textComponent.maxVisibleCharacters = 9999; // If not set high, text might not fully display even if max should allow all characters to display...
@@ -211,12 +210,14 @@ public class FancyText : MonoBehaviour
         CreateCharacterMeshes();
         StartDisplayingText();
 
-        sw.Stop();
-        UnityEngine.Debug.Log("Time to set new text: " + sw.ElapsedMilliseconds + "ms");
+        sw.StopAndLog();
+        Debug.Log("--------------------------");
     }
 
     void CreateEffectAreas(List<ParsedTag> parsedTags)
     {
+        EasyStopwatch sw = new EasyStopwatch("create effect areas");
+
         updateCharacterEffectAreas = new List<CharacterEffectArea>();
         fixedUpdateCharacterEffectAreas = new List<CharacterEffectArea>();
 
@@ -232,15 +233,23 @@ public class FancyText : MonoBehaviour
                 else { updateCharacterEffectAreas.Add(newEffectArea); }
             }
         }
+
+        sw.StopAndLog();
     }
     void CreateCharacterMeshes()
     {
+        EasyStopwatch sw = new EasyStopwatch("create character meshes");
+
         characterMeshes = new CharacterMesh[noSpacesParsedText.Length];
+        Vector3[] cachedVertices = textComponent.mesh.vertices;
+        Color[] cachedColors = textComponent.mesh.colors;
 
         for (int i = 0; i < characterMeshes.Length; i++)
         {
-            characterMeshes[i] = new CharacterMesh(i * 4, textComponent.mesh.vertices, textComponent.mesh.colors, noSpacesParsedText[i]);
+            characterMeshes[i] = new CharacterMesh(i * 4, cachedVertices, cachedColors, noSpacesParsedText[i]);
         }
+
+        sw.StopAndLog();
     }
 
     public void StartDisplayingText()
@@ -313,7 +322,7 @@ public struct CharacterMesh
     public CharacterMesh(int startIndex, Vector3[] allVertices, Color[] allColors, char character)
     {
         this.character = character;
-        this.name = character.ToString();
+        name = character.ToString();
         this.startIndex = startIndex;
         appearing = false;
 
@@ -323,7 +332,6 @@ public struct CharacterMesh
         origVerts[2] = allVertices[startIndex + 2];
         origVerts[3] = allVertices[startIndex + 3];
 
-        vertices = new Vector3[4];
         vertices = (Vector3[])origVerts.Clone();
 
         origColors = new Color[4];
@@ -332,7 +340,6 @@ public struct CharacterMesh
         origColors[2] = allColors[startIndex + 2];
         origColors[3] = allColors[startIndex + 3];
 
-        colors = new Color[4];
         colors = (Color[])origColors.Clone();
 
         savedVector3Data = new Dictionary<string, Vector3[]>();
