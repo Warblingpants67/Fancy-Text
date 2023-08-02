@@ -103,22 +103,12 @@ public class FancyText : MonoBehaviour
     {
         for (int i = appearingCharacters.Count - 1; i >= 0 ; i--)
         {
-            int index = appearingCharacters[i].meshIndex;
             appearingCharacters[i].currentTime += Time.deltaTime;
 
             float p = (appearingCharacters[i].currentTime > appearingCharacters[i].appearTime ? appearingCharacters[i].appearTime : appearingCharacters[i].currentTime) / appearingCharacters[i].appearTime;
-            appearEffect.ApplyAppearEffect(ref characterMeshes[index], p);
+            appearEffect.ApplyAppearEffect(ref characterMeshes[appearingCharacters[i].meshIndex], p);
 
-            if (!appearingCharacters[i].displayed)
-            {
-                textComponent.maxVisibleCharacters++;
-                appearingCharacters[i].displayed = true;
-            }
-            else if (p == 1)
-            {
-                characterMeshes[index].appearing = false;
-                appearingCharacters.RemoveAt(i);
-            }
+            if (p == 1) { appearingCharacters.RemoveAt(i); }
         }
     }
     void ApplyCharacterEffects(bool fixedUpdate)
@@ -158,7 +148,7 @@ public class FancyText : MonoBehaviour
             editedColors[charMesh.startIndex + 1] = charMesh.colors[1];
             editedColors[charMesh.startIndex + 2] = charMesh.colors[2];
             editedColors[charMesh.startIndex + 3] = charMesh.colors[3];
-        }
+         }
     }
     void ApplyEditArraysToMesh()
     {
@@ -187,8 +177,6 @@ public class FancyText : MonoBehaviour
     {
         EasyStopwatch sw = new EasyStopwatch("set new text");
 
-        appearingCharacters.Clear();
-        textComponent.maxVisibleCharacters = 9999; // If not set high, text might not fully display even if max should allow all characters to display...
         unparsedText = newText;
         textComponent.SetText(newText);
         textComponent.ForceMeshUpdate(); // mesh must be updated before you can get parsed text... TMPro why
@@ -216,8 +204,6 @@ public class FancyText : MonoBehaviour
 
     void CreateEffectAreas(List<ParsedTag> parsedTags)
     {
-        EasyStopwatch sw = new EasyStopwatch("create effect areas");
-
         updateCharacterEffectAreas = new List<CharacterEffectArea>();
         fixedUpdateCharacterEffectAreas = new List<CharacterEffectArea>();
 
@@ -233,13 +219,9 @@ public class FancyText : MonoBehaviour
                 else { updateCharacterEffectAreas.Add(newEffectArea); }
             }
         }
-
-        sw.StopAndLog();
     }
     void CreateCharacterMeshes()
     {
-        EasyStopwatch sw = new EasyStopwatch("create character meshes");
-
         characterMeshes = new CharacterMesh[noSpacesParsedText.Length];
         Vector3[] cachedVertices = textComponent.mesh.vertices;
         Color[] cachedColors = textComponent.mesh.colors;
@@ -248,18 +230,16 @@ public class FancyText : MonoBehaviour
         {
             characterMeshes[i] = new CharacterMesh(i * 4, cachedVertices, cachedColors, noSpacesParsedText[i]);
         }
-
-        sw.StopAndLog();
     }
 
     public void StartDisplayingText()
     {
         updateEditedMeshes = new List<int>();
         fixedUpdateEditedMeshes = new List<int>();
+        appearingCharacters = new List<AppearingCharacter>();
 
         if (useAppearEffect)
         {
-            textComponent.maxVisibleCharacters = 0;
             textFullyDisplayed = false;
 
             if (displayTextCoroutine != null) { StopCoroutine(displayTextCoroutine); }
@@ -267,9 +247,8 @@ public class FancyText : MonoBehaviour
         }
         else
         {
-            nonSpaceVisibleCharacters = noSpacesParsedText.Length;
-            textComponent.maxVisibleCharacters = parsedText.Length;
             textFullyDisplayed = true;
+            nonSpaceVisibleCharacters = noSpacesParsedText.Length;
         }
     }
 
@@ -284,7 +263,6 @@ public class FancyText : MonoBehaviour
 
             if (currentChar != ' ')
             {
-                characterMeshes[nonSpaceVisibleCharacters].appearing = true;
                 appearingCharacters.Add(new AppearingCharacter(nonSpaceVisibleCharacters, characterAppearTime));
                 nonSpaceVisibleCharacters++;
             }
@@ -303,7 +281,6 @@ public struct CharacterMesh
     public readonly char character;
     [SerializeField] string name; // for easier looking in arrays in editor (for now, custom editor later?)
     public int startIndex;
-    public bool appearing;
 
     // Original data
     public readonly Vector3[] origVerts;
@@ -324,7 +301,6 @@ public struct CharacterMesh
         this.character = character;
         name = character.ToString();
         this.startIndex = startIndex;
-        appearing = false;
 
         origVerts = new Vector3[4];
         origVerts[0] = allVertices[startIndex];
@@ -448,14 +424,12 @@ public class AppearingCharacter
     public readonly int meshIndex;
     public readonly float appearTime;
     public float currentTime;
-    public bool displayed;
 
     public AppearingCharacter(int meshIndex, float appearTime)
     {
         this.meshIndex = meshIndex; ;
         this.appearTime = appearTime;
         currentTime = 0;
-        displayed = false;
     }
 }
 
