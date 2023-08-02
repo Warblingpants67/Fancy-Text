@@ -14,6 +14,11 @@ public abstract class FancyTextEffect : ScriptableObject
         // Base effect is nothing
     }
 
+    public virtual Vector3[] GetOffset(float time, float[] parameters)
+    {
+        return null;
+    }
+
     public static float[] ResolveParameters(TextEffectParameter[] defaults, TextEffectParameter[] given)
     {
         float[] parameters = new float[defaults.Length];

@@ -5,17 +5,22 @@ using UnityEngine;
 using UnityEditor;
 using System.Linq;
 using System;
+using UnityEngine.Events;
 
 public class FancyText : MonoBehaviour
 {
     [SerializeField] TextMeshProUGUI textComponent;
-    [Header("State")]
-    [SerializeField] bool textFullyDisplayed;
     [Header("Events")]
-    [SerializeField] CharacterUnityEvent OnNewCharacterDisplayed;
+    [SerializeField] public UnityEvent OnNewText;
+    [SerializeField] public CharacterUnityEvent OnNewCharacterDisplayed;
+    [SerializeField] public UnityEvent OnTextFinishedDisplaying;
     [Header("temp")]
     [SerializeField] FancyTextAppearEffect appearEffect;
     [SerializeField] bool useAppearEffect;
+    [Header("Info")]
+    [SerializeField] bool textFullyDisplayed;
+
+    public bool TextFullyDisplayed { get { return textFullyDisplayed; } }
 
     FancyTextSettingsAsset defualtSettings;
     Mesh originalMesh;
@@ -175,8 +180,6 @@ public class FancyText : MonoBehaviour
 
     public void SetNewText(string newText)
     {
-        EasyStopwatch sw = new EasyStopwatch("set new text");
-
         unparsedText = newText;
         List<ParsedTag> parsedTags = FancyTextTagParser.ParseTags(newText, defualtSettings);
         textComponent.SetText(FancyTextTagParser.RemoveTags(newText, defualtSettings));
@@ -193,11 +196,10 @@ public class FancyText : MonoBehaviour
         // Set Effect Areas
         CreateEffectAreas(parsedTags);
 
+        OnNewText?.Invoke();
+
         CreateCharacterMeshes();
         StartDisplayingText();
-
-        sw.StopAndLog();
-        Debug.Log("--------------------------");
     }
 
     void CreateEffectAreas(List<ParsedTag> parsedTags)
@@ -247,6 +249,7 @@ public class FancyText : MonoBehaviour
         {
             textFullyDisplayed = true;
             nonSpaceVisibleCharacters = noSpacesParsedText.Length;
+            OnTextFinishedDisplaying?.Invoke();
         }
     }
 
@@ -270,6 +273,7 @@ public class FancyText : MonoBehaviour
         }
 
         textFullyDisplayed = true;
+        OnTextFinishedDisplaying?.Invoke();
     }
 }
 
@@ -328,6 +332,13 @@ public struct CharacterMesh
         for (int i = 0; i < vertices.Length; i++)
         {
             vertices[i] = vertices[i] + a;
+        }
+    }
+    public void Add(Vector3[] a)
+    {
+        for (int i = 0; i < vertices.Length; i++)
+        {
+            vertices[i] = vertices[i] + a[i];
         }
     }
 
@@ -442,8 +453,8 @@ public struct CharacterEffectArea
     public CharacterEffectArea(FancyTextEffect effect, TextEffectParameter[] parameters, int start, int end)
     {
         this.effect = effect;
-        this.givenParameters = parameters;
-        this.resolvedParameters = FancyTextEffect.ResolveParameters(effect.Parameters, givenParameters);
+        givenParameters = parameters;
+        resolvedParameters = FancyTextEffect.ResolveParameters(effect.Parameters, givenParameters);
         span = new Vector2Int(start, end);
     }
 }

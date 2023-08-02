@@ -20,8 +20,6 @@ public static class FancyTextTagParser
 
     public static List<ParsedTag> ParseTags(string text, FancyTextSettingsAsset settingsAsset)
     {
-        EasyStopwatch sw = new EasyStopwatch("parse tags");
-
         List<ParsedTag> parsedTags = new List<ParsedTag>();
 
         MatchCollection allTags = tagRX.Matches(text);
@@ -51,8 +49,6 @@ public static class FancyTextTagParser
             unparsedTags.RemoveAt(tagCloseIndexInUnparsedList);
             unparsedTags.RemoveAt(tagOpenIndexInUnparsedList);
         }
-
-        sw.StopAndLog();
 
         return parsedTags;
 
@@ -133,14 +129,8 @@ public static class FancyTextTagParser
 
     public static string RemoveTags(string input, FancyTextSettingsAsset settingsAsset) 
     {
-        EasyStopwatch sw = new EasyStopwatch("remove tags");
-
         FancyTextTagParser.settingsAsset = settingsAsset;
-        string s = wholeTagRX.Replace(input, new MatchEvaluator(FancyTextTagParser.ReplaceOnlyFancyTextTags));
-
-        sw.StopAndLog();
-
-        return s;
+        return wholeTagRX.Replace(input, new MatchEvaluator(FancyTextTagParser.ReplaceOnlyFancyTextTags));
     }
     static string ReplaceOnlyFancyTextTags(Match m)
     {
