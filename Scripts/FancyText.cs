@@ -178,9 +178,7 @@ public class FancyText : MonoBehaviour
         EasyStopwatch sw = new EasyStopwatch("set new text");
 
         unparsedText = newText;
-        textComponent.SetText(newText);
-        textComponent.ForceMeshUpdate(); // mesh must be updated before you can get parsed text... TMPro why
-        List<ParsedTag> parsedTags = FancyTextTagParser.ParseTags(textComponent.GetParsedText());
+        List<ParsedTag> parsedTags = FancyTextTagParser.ParseTags(newText, defualtSettings);
         textComponent.SetText(FancyTextTagParser.RemoveTags(newText, defualtSettings));
         textComponent.ForceMeshUpdate();
         parsedText = textComponent.GetParsedText();

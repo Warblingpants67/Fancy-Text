@@ -7,7 +7,7 @@ public static class FancyTextTagParser
     static readonly string tagPattern = @"(?<=\<)(.*?)(?=\>)";
     static readonly string wholeTagPattern = @"<(.*?)>";
     static readonly string spacesNotInTagsPattern = @" +(?![^<]*\>)";
-    static readonly string tagNamePattern = @"([^/|<]*?)(?=\>|,|=)";
+    static readonly string tagNamePattern = @"([^/|<]*?)(?=\>|,|=|$)";
 
     static readonly RegexOptions rxOptions = RegexOptions.Multiline | RegexOptions.IgnoreCase;
 
@@ -18,7 +18,7 @@ public static class FancyTextTagParser
 
     static FancyTextSettingsAsset settingsAsset;
 
-    public static List<ParsedTag> ParseTags(string text)
+    public static List<ParsedTag> ParseTags(string text, FancyTextSettingsAsset settingsAsset)
     {
         EasyStopwatch sw = new EasyStopwatch("parse tags");
 
@@ -28,14 +28,16 @@ public static class FancyTextTagParser
         Match[] matchArray = new Match[allTags.Count]; allTags.CopyTo(matchArray, 0);
         List<Match> unparsedTags = new List<Match>(matchArray);
 
+        RemoveNonFancyTextTags();
+
         while(unparsedTags.Count > 0)
         {
             int tagCloseIndexInUnparsedList = GetFirstClosingTagIndex(unparsedTags);
-            if (tagCloseIndexInUnparsedList == -1) { UnityEngine.Debug.LogError("Tag(s) missing closing tag!"); return parsedTags; }
+            if (tagCloseIndexInUnparsedList == -1) { Debug.LogError("Tag(s) missing closing tag!"); return parsedTags; }
             string tagName = unparsedTags[tagCloseIndexInUnparsedList].Value.Substring(1);
 
             int tagOpenIndexInUnparsedList = GetClosestMatchingOpenTag(tagName, tagCloseIndexInUnparsedList, unparsedTags);
-            if (tagOpenIndexInUnparsedList == -1) { UnityEngine.Debug.LogError("Tag(s) missing opening tag!"); return parsedTags; }
+            if (tagOpenIndexInUnparsedList == -1) { Debug.LogError("Tag(s) missing opening tag!"); return parsedTags; }
 
             // Creating new parsed tag
             int openTagIndexOffset = TotalMatchLengthAndSpacesUntil(text, unparsedTags[tagOpenIndexInUnparsedList].Index) + 1; // honestly no clue why i have to offset 1 and 2 but it works so idc
@@ -53,6 +55,14 @@ public static class FancyTextTagParser
         sw.StopAndLog();
 
         return parsedTags;
+
+        void RemoveNonFancyTextTags()
+        {
+            for (int i = unparsedTags.Count - 1; i > -1; i--)
+            {
+                if (!IsTagInAsset(unparsedTags[i].Value, settingsAsset)) { unparsedTags.RemoveAt(i); }
+            }
+        }
     }
 
     static int GetClosestMatchingOpenTag(string closeTagName, int closeTagIndex, List<Match> tags)
@@ -134,8 +144,13 @@ public static class FancyTextTagParser
     }
     static string ReplaceOnlyFancyTextTags(Match m)
     {
-        string tagName = tagNameRX.Match(m.Value).Value;
-        return settingsAsset.IsRecognizedTag(tagName) ? "" : m.Value;
+        return IsTagInAsset(m.Value, settingsAsset) ? "" : m.Value;
+    }
+
+    static bool IsTagInAsset(string wholeTag, FancyTextSettingsAsset asset)
+    {
+        string tagName = tagNameRX.Match(wholeTag).Value;
+        return asset.IsRecognizedTag(tagName);
     }
 }
 
