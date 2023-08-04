@@ -1,4 +1,5 @@
 using UnityEngine;
+using FancyText;
 
 [CreateAssetMenu(fileName = "Fade Drop In Effect", menuName = "FancyText/AppearEffects/Fade Drop In")]
 public class FT_FadeDropIn_AppearEffect : FancyTextAppearEffect

@@ -1,4 +1,5 @@
 using UnityEngine;
+using FancyText;
 
 [CreateAssetMenu(fileName = "Shake Effect", menuName = "FancyText/Effects/Shake")]
 public class FT_Shake_Effect : FancyTextEffect

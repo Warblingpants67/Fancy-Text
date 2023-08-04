@@ -1,4 +1,5 @@
 using UnityEngine;
+using FancyText;
 
 [CreateAssetMenu(fileName = "Gradient Effect", menuName = "FancyText/Effects/Gradient")]
 public class FT_Gradient_Effect : FancyTextEffect

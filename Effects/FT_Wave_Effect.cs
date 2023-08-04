@@ -1,4 +1,5 @@
 using UnityEngine;
+using FancyText;
 
 [CreateAssetMenu(fileName = "Wave Effect", menuName = "FancyText/Effects/Wave")]
 public class FT_Wave_Effect : FancyTextEffect

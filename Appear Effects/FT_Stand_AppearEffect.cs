@@ -1,4 +1,5 @@
 using UnityEngine;
+using FancyText;
 
 [CreateAssetMenu(fileName = "Stand Effect", menuName = "FancyText/AppearEffects/Stand")]
 public class FT_Stand_AppearEffect : FancyTextAppearEffect

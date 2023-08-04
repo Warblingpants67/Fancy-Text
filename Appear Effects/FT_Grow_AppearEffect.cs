@@ -1,4 +1,5 @@
 using UnityEngine;
+using FancyText;
 
 [CreateAssetMenu(fileName = "Grow Effect", menuName = "FancyText/AppearEffects/Grow")]
 public class FT_Grow_AppearEffect : FancyTextAppearEffect

@@ -1,4 +1,5 @@
 using UnityEngine;
+using FancyText;
 
 [CreateAssetMenu(fileName = "Roll Appear Effect", menuName = "FancyText/AppearEffects/Roll")]
 public class FT_Roll_AppearEffect : FancyTextAppearEffect

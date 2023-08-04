@@ -1,4 +1,5 @@
 using UnityEngine;
+using FancyText;
 
 [CreateAssetMenu(fileName = "Shrink Effect", menuName = "FancyText/AppearEffects/Shrink")]
 public class FT_Shrink_AppearEffect : FancyTextAppearEffect

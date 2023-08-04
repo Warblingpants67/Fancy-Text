@@ -5,241 +5,244 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.Events;
 
-public class FancyTextAnimator : MonoBehaviour
+namespace FancyText
 {
-    [SerializeField] TextMeshProUGUI textComponent;
-    [SerializeField] FancyTextAnimationSettings animationSettings;
-    [Header("Events")]
-    [SerializeField] public UnityEvent OnNewText;
-    [SerializeField] public CharacterUnityEvent OnNewCharacterDisplayed;
-    [SerializeField] public UnityEvent OnTextFinishedDisplaying;
-    [Header("Info")]
-    [SerializeField] bool textFullyDisplayed;
-    [SerializeField] CharacterMesh[] characterMeshes;
-    [SerializeField] List<CharacterEffectArea> updateCharacterEffectAreas;
-    [SerializeField] List<CharacterEffectArea> fixedUpdateCharacterEffectAreas;
-    [SerializeField] List<FixedUpdateCharacterMeshChange> fixedUpdateMeshChanges = new List<FixedUpdateCharacterMeshChange>();
-
-    FancyTextSettingsAsset defualtSettings;
-    Mesh originalMesh;
-    Vector3[] editedVertices;
-    Color[] editedColors;
-    int nonSpaceVisibleCharacters = 0;
-    Coroutine displayTextCoroutine;
-
-    List<AppearingCharacter> appearingCharacters = new List<AppearingCharacter>();
-    List<int> updateEditedMeshes = new List<int>();
-    List<int> fixedUpdateEditedMeshes = new List<int>();
-
-    // Text
-    string parsedText;
-    string unparsedText;
-    string noSpacesParsedText;
-
-    public string ParsedText { get { return parsedText; } }
-    public string UnparsedText { get { return unparsedText; } }
-    public FancyTextSettingsAsset SettingsAsset { get { return defualtSettings; } }
-    public bool TextFullyDisplayed { get { return textFullyDisplayed; } }
-
-    private void Start()
+    public class FancyTextAnimator : MonoBehaviour
     {
-        defualtSettings = (FancyTextSettingsAsset)Resources.Load("Default FancyText Settings Asset");
+        [SerializeField] TextMeshProUGUI textComponent;
+        [SerializeField] FancyTextAnimationSettings animationSettings;
+        [Header("Events")]
+        [SerializeField] public UnityEvent OnNewText;
+        [SerializeField] public CharacterUnityEvent OnNewCharacterDisplayed;
+        [SerializeField] public UnityEvent OnTextFinishedDisplaying;
+        [Header("Info")]
+        [SerializeField] bool textFullyDisplayed;
+        [SerializeField] CharacterMesh[] characterMeshes;
+        [SerializeField] List<CharacterEffectArea> updateCharacterEffectAreas;
+        [SerializeField] List<CharacterEffectArea> fixedUpdateCharacterEffectAreas;
+        [SerializeField] List<FixedUpdateCharacterMeshChange> fixedUpdateMeshChanges = new List<FixedUpdateCharacterMeshChange>();
 
-        HandleNullVariables();
-        SetNewText(textComponent.text);
-    }
-    void HandleNullVariables()
-    {
-        if (textComponent == null)
+        FancyTextSettingsAsset defualtSettings;
+        Mesh originalMesh;
+        Vector3[] editedVertices;
+        Color[] editedColors;
+        int nonSpaceVisibleCharacters = 0;
+        Coroutine displayTextCoroutine;
+
+        List<AppearingCharacter> appearingCharacters = new List<AppearingCharacter>();
+        List<int> updateEditedMeshes = new List<int>();
+        List<int> fixedUpdateEditedMeshes = new List<int>();
+
+        // Text
+        string parsedText;
+        string unparsedText;
+        string noSpacesParsedText;
+
+        public string ParsedText { get { return parsedText; } }
+        public string UnparsedText { get { return unparsedText; } }
+        public FancyTextSettingsAsset SettingsAsset { get { return defualtSettings; } }
+        public bool TextFullyDisplayed { get { return textFullyDisplayed; } }
+
+        private void Start()
         {
-            textComponent = GetComponent<TextMeshProUGUI>();
-            if (textComponent == null) { Debug.LogError("FancyTextAnimator has no assigned text mesh pro object!"); }
+            defualtSettings = (FancyTextSettingsAsset)Resources.Load("Default FancyText Settings Asset");
+
+            HandleNullVariables();
+            SetNewText(textComponent.text);
         }
-    }
-
-    private void Update()
-    {
-        ResetUpdatedCharacterMeshesToOriginal();
-        updateEditedMeshes.Clear();
-
-        ApplyCharacterAppearEffects();
-        ApplyCharacterEffects(false);
-
-        ApplyFixedUpdateMeshChanges();
-
-        ApplyCharacterMeshEditsToEditArrays();
-        ApplyEditArraysToMesh();
-    }
-    private void FixedUpdate()
-    {
-        ResetUpdatedCharacterMeshesToOriginal();
-        fixedUpdateEditedMeshes.Clear();
-        fixedUpdateMeshChanges.Clear();
-
-        ApplyCharacterEffects(true);
-
-        GetFixedUpdateMeshChanges();
-    }
-
-    void ResetUpdatedCharacterMeshesToOriginal()
-    {
-        List<int> indexList = fixedUpdateEditedMeshes.Union(updateEditedMeshes).ToList();
-        for (int i = 0; i < indexList.Count; i++)
+        void HandleNullVariables()
         {
-            characterMeshes[indexList[i]].ResetVerticesToOriginalVertices();
-            characterMeshes[indexList[i]].ResetColorsToOriginalColors();
-        }
-    }
-    void ApplyCharacterAppearEffects()
-    {
-        for (int i = appearingCharacters.Count - 1; i >= 0; i--)
-        {
-            appearingCharacters[i].currentTime += Time.deltaTime;
-
-            float p = (appearingCharacters[i].currentTime > appearingCharacters[i].appearTime ? appearingCharacters[i].appearTime : appearingCharacters[i].currentTime) / appearingCharacters[i].appearTime;
-            animationSettings.appearEffect.ApplyAppearEffect(ref characterMeshes[appearingCharacters[i].meshIndex], p);
-
-            if (p == 1) { appearingCharacters.RemoveAt(i); }
-        }
-    }
-    void ApplyCharacterEffects(bool fixedUpdate)
-    {
-        List<CharacterEffectArea> characterEffectAreas = fixedUpdate ? ref fixedUpdateCharacterEffectAreas : ref updateCharacterEffectAreas;
-        List<int> updatedCharacterMeshList = fixedUpdate ? ref fixedUpdateEditedMeshes : ref updateEditedMeshes;
-
-        for (int i = 0; i < characterEffectAreas.Count; i++)
-        {
-            CharacterEffectArea effectArea = characterEffectAreas[i];
-
-            if (effectArea.span.x < nonSpaceVisibleCharacters) // if effect is currently visible
+            if (textComponent == null)
             {
-                int max = Mathf.Min(new int[] { effectArea.span.y + 1, nonSpaceVisibleCharacters });
+                textComponent = GetComponent<TextMeshProUGUI>();
+                if (textComponent == null) { Debug.LogError("FancyTextAnimator has no assigned text mesh pro object!"); }
+            }
+        }
 
-                for (int j = effectArea.span.x; j < max; j++)
+        private void Update()
+        {
+            ResetUpdatedCharacterMeshesToOriginal();
+            updateEditedMeshes.Clear();
+
+            ApplyCharacterAppearEffects();
+            ApplyCharacterEffects(false);
+
+            ApplyFixedUpdateMeshChanges();
+
+            ApplyCharacterMeshEditsToEditArrays();
+            ApplyEditArraysToMesh();
+        }
+        private void FixedUpdate()
+        {
+            ResetUpdatedCharacterMeshesToOriginal();
+            fixedUpdateEditedMeshes.Clear();
+            fixedUpdateMeshChanges.Clear();
+
+            ApplyCharacterEffects(true);
+
+            GetFixedUpdateMeshChanges();
+        }
+
+        void ResetUpdatedCharacterMeshesToOriginal()
+        {
+            List<int> indexList = fixedUpdateEditedMeshes.Union(updateEditedMeshes).ToList();
+            for (int i = 0; i < indexList.Count; i++)
+            {
+                characterMeshes[indexList[i]].ResetVerticesToOriginalVertices();
+                characterMeshes[indexList[i]].ResetColorsToOriginalColors();
+            }
+        }
+        void ApplyCharacterAppearEffects()
+        {
+            for (int i = appearingCharacters.Count - 1; i >= 0; i--)
+            {
+                appearingCharacters[i].currentTime += Time.deltaTime;
+
+                float p = (appearingCharacters[i].currentTime > appearingCharacters[i].appearTime ? appearingCharacters[i].appearTime : appearingCharacters[i].currentTime) / appearingCharacters[i].appearTime;
+                animationSettings.appearEffect.ApplyAppearEffect(ref characterMeshes[appearingCharacters[i].meshIndex], p);
+
+                if (p == 1) { appearingCharacters.RemoveAt(i); }
+            }
+        }
+        void ApplyCharacterEffects(bool fixedUpdate)
+        {
+            List<CharacterEffectArea> characterEffectAreas = fixedUpdate ? ref fixedUpdateCharacterEffectAreas : ref updateCharacterEffectAreas;
+            List<int> updatedCharacterMeshList = fixedUpdate ? ref fixedUpdateEditedMeshes : ref updateEditedMeshes;
+
+            for (int i = 0; i < characterEffectAreas.Count; i++)
+            {
+                CharacterEffectArea effectArea = characterEffectAreas[i];
+
+                if (effectArea.span.x < nonSpaceVisibleCharacters) // if effect is currently visible
                 {
-                    effectArea.effect.ApplyEffect(ref characterMeshes[j], Time.time, effectArea.resolvedParameters);
+                    int max = Mathf.Min(new int[] { effectArea.span.y + 1, nonSpaceVisibleCharacters });
 
-                    if (!updatedCharacterMeshList.Contains(j)) { updatedCharacterMeshList.Add(j); }
+                    for (int j = effectArea.span.x; j < max; j++)
+                    {
+                        effectArea.effect.ApplyEffect(ref characterMeshes[j], Time.time, effectArea.resolvedParameters);
+
+                        if (!updatedCharacterMeshList.Contains(j)) { updatedCharacterMeshList.Add(j); }
+                    }
                 }
             }
         }
-    }
-    void ApplyCharacterMeshEditsToEditArrays()
-    {
-        for (int i = 0; i < nonSpaceVisibleCharacters; i++)
+        void ApplyCharacterMeshEditsToEditArrays()
         {
-            CharacterMesh charMesh = characterMeshes[i];
-
-            editedVertices[charMesh.startIndex] = charMesh.vertices[0];
-            editedVertices[charMesh.startIndex + 1] = charMesh.vertices[1];
-            editedVertices[charMesh.startIndex + 2] = charMesh.vertices[2];
-            editedVertices[charMesh.startIndex + 3] = charMesh.vertices[3];
-
-            editedColors[charMesh.startIndex] = charMesh.colors[0];
-            editedColors[charMesh.startIndex + 1] = charMesh.colors[1];
-            editedColors[charMesh.startIndex + 2] = charMesh.colors[2];
-            editedColors[charMesh.startIndex + 3] = charMesh.colors[3];
-        }
-    }
-    void ApplyEditArraysToMesh()
-    {
-        originalMesh.vertices = editedVertices;
-        originalMesh.colors = editedColors;
-        textComponent.canvasRenderer.SetMesh(originalMesh);
-    }
-    void GetFixedUpdateMeshChanges()
-    {
-        for (int i = 0; i < fixedUpdateEditedMeshes.Count; i++)
-        {
-            int meshIndex = fixedUpdateEditedMeshes[i];
-            fixedUpdateMeshChanges.Add(new FixedUpdateCharacterMeshChange(meshIndex, characterMeshes[meshIndex]));
-        }
-    }
-    void ApplyFixedUpdateMeshChanges()
-    {
-        for (int i = 0; i < fixedUpdateMeshChanges.Count; i++)
-        {
-            int meshIndex = fixedUpdateMeshChanges[i].meshIndex;
-            characterMeshes[meshIndex].ApplyFixedUpdateChange(fixedUpdateMeshChanges[i]);
-        }
-    }
-
-    public void SetNewText(string newText)
-    {
-        unparsedText = newText;
-        List<ParsedTag> parsedTags = FancyTextTagParser.ParseTags(newText, defualtSettings);
-        textComponent.SetText(FancyTextTagParser.RemoveTags(newText, defualtSettings));
-        textComponent.ForceMeshUpdate();
-        parsedText = textComponent.GetParsedText();
-        noSpacesParsedText = parsedText.Replace(" ", "");
-
-        originalMesh = textComponent.mesh;
-
-        // Initialize Edit Arrays
-        editedVertices = new Vector3[textComponent.mesh.vertexCount];
-        editedColors = new Color[editedVertices.Length];
-
-        // Create Effect Areas
-        List<CharacterEffectArea>[] areas = FancyText.CreateEffectAreas(parsedTags, defualtSettings);
-        updateCharacterEffectAreas = areas[0];
-        fixedUpdateCharacterEffectAreas = areas[1];
-
-        OnNewText?.Invoke();
-
-        characterMeshes = FancyText.CreateCharacterMeshes(noSpacesParsedText, textComponent);
-        StartDisplayingText();
-    }
-
-    public void StartDisplayingText()
-    {
-        updateEditedMeshes = new List<int>();
-        fixedUpdateEditedMeshes = new List<int>();
-        appearingCharacters = new List<AppearingCharacter>();
-
-        if (animationSettings.useAppearEffect)
-        {
-            textFullyDisplayed = false;
-
-            if (displayTextCoroutine != null) { StopCoroutine(displayTextCoroutine); }
-            displayTextCoroutine = StartCoroutine(DisplayText());
-        }
-        else
-        {
-            textFullyDisplayed = true;
-            nonSpaceVisibleCharacters = noSpacesParsedText.Length;
-            OnTextFinishedDisplaying?.Invoke();
-        }
-    }
-    IEnumerator DisplayText()
-    {
-        appearingCharacters = new List<AppearingCharacter>();
-        nonSpaceVisibleCharacters = 0;
-
-        for (int i = 0; i < parsedText.Length; i++)
-        {
-            char currentChar = parsedText[i];
-
-            if (currentChar != ' ')
+            for (int i = 0; i < nonSpaceVisibleCharacters; i++)
             {
-                appearingCharacters.Add(new AppearingCharacter(nonSpaceVisibleCharacters, animationSettings.characterAppearTime));
-                nonSpaceVisibleCharacters++;
+                CharacterMesh charMesh = characterMeshes[i];
+
+                editedVertices[charMesh.startIndex] = charMesh.vertices[0];
+                editedVertices[charMesh.startIndex + 1] = charMesh.vertices[1];
+                editedVertices[charMesh.startIndex + 2] = charMesh.vertices[2];
+                editedVertices[charMesh.startIndex + 3] = charMesh.vertices[3];
+
+                editedColors[charMesh.startIndex] = charMesh.colors[0];
+                editedColors[charMesh.startIndex + 1] = charMesh.colors[1];
+                editedColors[charMesh.startIndex + 2] = charMesh.colors[2];
+                editedColors[charMesh.startIndex + 3] = charMesh.colors[3];
+            }
+        }
+        void ApplyEditArraysToMesh()
+        {
+            originalMesh.vertices = editedVertices;
+            originalMesh.colors = editedColors;
+            textComponent.canvasRenderer.SetMesh(originalMesh);
+        }
+        void GetFixedUpdateMeshChanges()
+        {
+            for (int i = 0; i < fixedUpdateEditedMeshes.Count; i++)
+            {
+                int meshIndex = fixedUpdateEditedMeshes[i];
+                fixedUpdateMeshChanges.Add(new FixedUpdateCharacterMeshChange(meshIndex, characterMeshes[meshIndex]));
+            }
+        }
+        void ApplyFixedUpdateMeshChanges()
+        {
+            for (int i = 0; i < fixedUpdateMeshChanges.Count; i++)
+            {
+                int meshIndex = fixedUpdateMeshChanges[i].meshIndex;
+                characterMeshes[meshIndex].ApplyFixedUpdateChange(fixedUpdateMeshChanges[i]);
+            }
+        }
+
+        public void SetNewText(string newText)
+        {
+            unparsedText = newText;
+            List<ParsedTag> parsedTags = FancyTextTagParser.ParseTags(newText, defualtSettings);
+            textComponent.SetText(FancyTextTagParser.RemoveTags(newText, defualtSettings));
+            textComponent.ForceMeshUpdate();
+            parsedText = textComponent.GetParsedText();
+            noSpacesParsedText = parsedText.Replace(" ", "");
+
+            originalMesh = textComponent.mesh;
+
+            // Initialize Edit Arrays
+            editedVertices = new Vector3[textComponent.mesh.vertexCount];
+            editedColors = new Color[editedVertices.Length];
+
+            // Create Effect Areas
+            List<CharacterEffectArea>[] areas = FancyTextHelper.CreateEffectAreas(parsedTags, defualtSettings);
+            updateCharacterEffectAreas = areas[0];
+            fixedUpdateCharacterEffectAreas = areas[1];
+
+            OnNewText?.Invoke();
+
+            characterMeshes = FancyTextHelper.CreateCharacterMeshes(noSpacesParsedText, textComponent);
+            StartDisplayingText();
+        }
+
+        public void StartDisplayingText()
+        {
+            updateEditedMeshes = new List<int>();
+            fixedUpdateEditedMeshes = new List<int>();
+            appearingCharacters = new List<AppearingCharacter>();
+
+            if (animationSettings.useAppearEffect)
+            {
+                textFullyDisplayed = false;
+
+                if (displayTextCoroutine != null) { StopCoroutine(displayTextCoroutine); }
+                displayTextCoroutine = StartCoroutine(DisplayText());
+            }
+            else
+            {
+                textFullyDisplayed = true;
+                nonSpaceVisibleCharacters = noSpacesParsedText.Length;
+                OnTextFinishedDisplaying?.Invoke();
+            }
+        }
+        IEnumerator DisplayText()
+        {
+            appearingCharacters = new List<AppearingCharacter>();
+            nonSpaceVisibleCharacters = 0;
+
+            for (int i = 0; i < parsedText.Length; i++)
+            {
+                char currentChar = parsedText[i];
+
+                if (currentChar != ' ')
+                {
+                    appearingCharacters.Add(new AppearingCharacter(nonSpaceVisibleCharacters, animationSettings.characterAppearTime));
+                    nonSpaceVisibleCharacters++;
+                }
+
+                OnNewCharacterDisplayed?.Invoke(currentChar);
+                yield return new WaitForSeconds(animationSettings.timeBetweenCharacters + GetAdditionalCharacterDelay(i));
             }
 
-            OnNewCharacterDisplayed?.Invoke(currentChar);
-            yield return new WaitForSeconds(animationSettings.timeBetweenCharacters + GetAdditionalCharacterDelay(i));
+            textFullyDisplayed = true;
+            OnTextFinishedDisplaying?.Invoke();
         }
 
-        textFullyDisplayed = true;
-        OnTextFinishedDisplaying?.Invoke();
-    }
+        float GetAdditionalCharacterDelay(int index)
+        {
+            char character = parsedText[index];
+            float addTime = 0;
 
-    float GetAdditionalCharacterDelay(int index)
-    {
-        char character = parsedText[index];
-        float addTime = 0;
+            addTime += animationSettings.GetCharacterDelay(character);
 
-        addTime += animationSettings.GetCharacterDelay(character);
-
-        return addTime;
+            return addTime;
+        }
     }
 }

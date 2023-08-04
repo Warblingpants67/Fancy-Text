@@ -1,10 +1,12 @@
-using System.Collections;
 using UnityEngine;
 
-public abstract class FancyTextAppearEffect : ScriptableObject
+namespace FancyText
 {
-    public virtual void ApplyAppearEffect(ref CharacterMesh charVerts, float percent)
+    public abstract class FancyTextAppearEffect : ScriptableObject
     {
-        // Base effect is nothing, to simply appear
+        public virtual void ApplyAppearEffect(ref CharacterMesh charVerts, float percent)
+        {
+            // Base effect is nothing, to simply appear
+        }
     }
 }

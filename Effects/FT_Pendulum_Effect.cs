@@ -1,4 +1,5 @@
 using UnityEngine;
+using FancyText;
 
 [CreateAssetMenu(fileName = "Pendulum Effect", menuName = "FancyText/Effects/Pendulum")]
 public class FT_Pendulum_Effect : FancyTextEffect
