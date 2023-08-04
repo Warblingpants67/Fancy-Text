@@ -2,54 +2,34 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
-using UnityEditor;
 using System.Linq;
-using System;
 using UnityEngine.Events;
 
 public class FancyText : MonoBehaviour
 {
     [SerializeField] TextMeshProUGUI textComponent;
+    [SerializeField] FancyTextAnimationSettings animationSettings;
     [Header("Events")]
     [SerializeField] public UnityEvent OnNewText;
     [SerializeField] public CharacterUnityEvent OnNewCharacterDisplayed;
     [SerializeField] public UnityEvent OnTextFinishedDisplaying;
-    [Header("temp")]
-    [SerializeField] FancyTextAppearEffect appearEffect;
-    [SerializeField] bool useAppearEffect;
     [Header("Info")]
     [SerializeField] bool textFullyDisplayed;
-
-    public bool TextFullyDisplayed { get { return textFullyDisplayed; } }
+    [SerializeField] CharacterMesh[] characterMeshes;
+    [SerializeField] List<CharacterEffectArea> updateCharacterEffectAreas;
+    [SerializeField] List<CharacterEffectArea> fixedUpdateCharacterEffectAreas;
+    [SerializeField] List<FixedUpdateCharacterMeshChange> fixedUpdateMeshChanges = new List<FixedUpdateCharacterMeshChange>();
 
     FancyTextSettingsAsset defualtSettings;
     Mesh originalMesh;
-
-    // Edit Arrays
     Vector3[] editedVertices;
     Color[] editedColors;
-
-    // Meshes
-    [SerializeField] CharacterMesh[] characterMeshes;
-
-    // Settings
-    float timeBetweenCharacters = .025f;
-    float characterAppearTime = .1f;
-
     int nonSpaceVisibleCharacters = 0;
+    Coroutine displayTextCoroutine;
 
-    // Appearing characters
     List<AppearingCharacter> appearingCharacters = new List<AppearingCharacter>();
-
-    [Header("Text effect areas")]
-    [SerializeField] List<CharacterEffectArea> updateCharacterEffectAreas;
-    [SerializeField] List<CharacterEffectArea> fixedUpdateCharacterEffectAreas;
-
-    // Edited Meshes
     List<int> updateEditedMeshes = new List<int>();
     List<int> fixedUpdateEditedMeshes = new List<int>();
-
-    [SerializeField] List<FixedUpdateCharacterMeshChange> fixedUpdateMeshChanges = new List<FixedUpdateCharacterMeshChange>();
 
     // Text
     string parsedText;
@@ -58,11 +38,8 @@ public class FancyText : MonoBehaviour
 
     public string ParsedText { get { return parsedText; } }
     public string UnparsedText { get { return unparsedText; } }
-
-    // Coroutines
-    Coroutine displayTextCoroutine;
-
     public FancyTextSettingsAsset SettingsAsset { get { return defualtSettings; } }
+    public bool TextFullyDisplayed { get { return textFullyDisplayed; } }
 
     private void Start()
     {
@@ -111,7 +88,7 @@ public class FancyText : MonoBehaviour
             appearingCharacters[i].currentTime += Time.deltaTime;
 
             float p = (appearingCharacters[i].currentTime > appearingCharacters[i].appearTime ? appearingCharacters[i].appearTime : appearingCharacters[i].currentTime) / appearingCharacters[i].appearTime;
-            appearEffect.ApplyAppearEffect(ref characterMeshes[appearingCharacters[i].meshIndex], p);
+            animationSettings.appearEffect.ApplyAppearEffect(ref characterMeshes[appearingCharacters[i].meshIndex], p);
 
             if (p == 1) { appearingCharacters.RemoveAt(i); }
         }
@@ -231,14 +208,13 @@ public class FancyText : MonoBehaviour
             characterMeshes[i] = new CharacterMesh(i * 4, cachedVertices, cachedColors, noSpacesParsedText[i]);
         }
     }
-
     public void StartDisplayingText()
     {
         updateEditedMeshes = new List<int>();
         fixedUpdateEditedMeshes = new List<int>();
         appearingCharacters = new List<AppearingCharacter>();
 
-        if (useAppearEffect)
+        if (animationSettings.useAppearEffect)
         {
             textFullyDisplayed = false;
 
@@ -252,7 +228,6 @@ public class FancyText : MonoBehaviour
             OnTextFinishedDisplaying?.Invoke();
         }
     }
-
     IEnumerator DisplayText()
     {
         appearingCharacters = new List<AppearingCharacter>();
@@ -264,16 +239,26 @@ public class FancyText : MonoBehaviour
 
             if (currentChar != ' ')
             {
-                appearingCharacters.Add(new AppearingCharacter(nonSpaceVisibleCharacters, characterAppearTime));
+                appearingCharacters.Add(new AppearingCharacter(nonSpaceVisibleCharacters, animationSettings.characterAppearTime));
                 nonSpaceVisibleCharacters++;
             }
 
             OnNewCharacterDisplayed?.Invoke(currentChar);
-            yield return new WaitForSeconds(timeBetweenCharacters);
+            yield return new WaitForSeconds(animationSettings.timeBetweenCharacters + GetAdditionalCharacterDelay(i));
         }
 
         textFullyDisplayed = true;
         OnTextFinishedDisplaying?.Invoke();
+    }
+
+    float GetAdditionalCharacterDelay(int index)
+    {
+        char character = parsedText[index];
+        float addTime = 0;
+
+        addTime += animationSettings.GetCharacterDelay(character);
+
+        return addTime;
     }
 }
 
@@ -352,7 +337,6 @@ public struct CharacterMesh
     }
 
     // Saved data
-
     public void SaveVector3Data(string key, Vector3[] data)
     {
         if (savedVector3Data.ContainsKey(key))
@@ -391,7 +375,6 @@ public struct CharacterMesh
     }
 
     // Overrides
-
     public override string ToString()
     {
         string output = "[";
@@ -473,3 +456,41 @@ public class TextEffectParameter
 }
 
 [System.Serializable] public class CharacterUnityEvent : UnityEngine.Events.UnityEvent<char> { }
+
+[System.Serializable]
+public class FancyTextAnimationSettings
+{
+    [Header("Appear settings")]
+    public bool useAppearEffect;
+    public FancyTextAppearEffect appearEffect;
+    public float characterAppearTime = .12f;
+    public float timeBetweenCharacters = .028f;
+    [SerializeField] AdditionalTimeAfterCharacter[] additionalCharacterDelays;
+
+    bool createdDelayDict = false;
+    Dictionary<char, float> characterDelaysDict;
+    void CreateCharacterDelaysDict()
+    {
+        characterDelaysDict = new Dictionary<char, float>();
+        for (int i = 0; i < additionalCharacterDelays.Length; i++)
+        {
+            characterDelaysDict.Add(additionalCharacterDelays[i].character, additionalCharacterDelays[i].additionalTime);
+        }
+        createdDelayDict = true;
+    }
+    public float GetCharacterDelay(char character)
+    {
+        if (!createdDelayDict) { CreateCharacterDelaysDict(); }
+
+        float delay;
+        if (characterDelaysDict.TryGetValue(character, out delay)) { return delay; }
+        return 0;
+    }
+
+    [System.Serializable]
+    class AdditionalTimeAfterCharacter
+    {
+        public char character;
+        public float additionalTime;
+    }
+}

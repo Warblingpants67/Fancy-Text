@@ -7,9 +7,10 @@ public class FT_FadeDropIn_AppearEffect : FancyTextAppearEffect
 
     public override void ApplyAppearEffect(ref CharacterMesh charVerts, float percent)
     {
+        float additionalY = dropHeight * (1 - percent);
+
         for (int i = 0; i < 4; i++)
         {
-            float additionalY = dropHeight * (1 - percent);
             charVerts.vertices[i].y = charVerts.origVerts[i].y + additionalY;
             charVerts.colors[i].a = percent;
         }
