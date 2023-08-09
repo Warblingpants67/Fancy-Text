@@ -12,4 +12,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 90e78ca87eda3ec4299d4af757b26795, type: 3}
   m_Name: Fade Drop In Effect
   m_EditorClassIdentifier: 
+  name: Fade Drop In
   dropHeight: 10

@@ -18,9 +18,11 @@ namespace FancyText
         [Header("Info")]
         [SerializeField] bool textFullyDisplayed;
         [SerializeField] CharacterMesh[] characterMeshes;
-        [SerializeField] List<CharacterEffectArea> updateCharacterEffectAreas;
-        [SerializeField] List<CharacterEffectArea> fixedUpdateCharacterEffectAreas;
+        [SerializeField] List<CharacterEffectArea<ResolvedEffect>> updateCharacterEffectAreas;
+        [SerializeField] List<CharacterEffectArea<ResolvedEffect>> fixedUpdateCharacterEffectAreas;
         [SerializeField] List<FixedUpdateCharacterMeshChange> fixedUpdateMeshChanges = new List<FixedUpdateCharacterMeshChange>();
+        [SerializeField] List<CharacterEffectArea<FancyTextAppearEffect>> appearEffectChanges;
+        [SerializeField] List<TextAppearPause> textAppearPauses;
 
         FancyTextSettingsAsset defualtSettings;
         Mesh originalMesh;
@@ -99,19 +101,19 @@ namespace FancyText
                 appearingCharacters[i].currentTime += Time.deltaTime;
 
                 float p = (appearingCharacters[i].currentTime > appearingCharacters[i].appearTime ? appearingCharacters[i].appearTime : appearingCharacters[i].currentTime) / appearingCharacters[i].appearTime;
-                animationSettings.appearEffect.ApplyAppearEffect(ref characterMeshes[appearingCharacters[i].meshIndex], p);
+                appearingCharacters[i].appearEffect.ApplyAppearEffect(ref characterMeshes[appearingCharacters[i].meshIndex], p);
 
                 if (p == 1) { appearingCharacters.RemoveAt(i); }
             }
         }
         void ApplyCharacterEffects(bool fixedUpdate)
         {
-            List<CharacterEffectArea> characterEffectAreas = fixedUpdate ? ref fixedUpdateCharacterEffectAreas : ref updateCharacterEffectAreas;
+            List<CharacterEffectArea<ResolvedEffect>> characterEffectAreas = fixedUpdate ? ref fixedUpdateCharacterEffectAreas : ref updateCharacterEffectAreas;
             List<int> updatedCharacterMeshList = fixedUpdate ? ref fixedUpdateEditedMeshes : ref updateEditedMeshes;
 
             for (int i = 0; i < characterEffectAreas.Count; i++)
             {
-                CharacterEffectArea effectArea = characterEffectAreas[i];
+                CharacterEffectArea<ResolvedEffect> effectArea = characterEffectAreas[i];
 
                 if (effectArea.span.x < nonSpaceVisibleCharacters) // if effect is currently visible
                 {
@@ -119,7 +121,7 @@ namespace FancyText
 
                     for (int j = effectArea.span.x; j < max; j++)
                     {
-                        effectArea.effect.ApplyEffect(ref characterMeshes[j], Time.time, effectArea.resolvedParameters);
+                        effectArea.effect.effect.ApplyEffect(ref characterMeshes[j], Time.time, effectArea.effect.resolvedParameters);
 
                         if (!updatedCharacterMeshList.Contains(j)) { updatedCharacterMeshList.Add(j); }
                     }
@@ -168,6 +170,8 @@ namespace FancyText
 
         public void SetNewText(string newText)
         {
+            EasyStopwatch wholeSW = new EasyStopwatch("set new text"); 
+
             unparsedText = newText;
             List<ParsedTag> parsedTags = FancyTextTagParser.ParseTags(newText, defualtSettings);
             textComponent.SetText(FancyTextTagParser.RemoveTags(newText, defualtSettings));
@@ -181,15 +185,21 @@ namespace FancyText
             editedVertices = new Vector3[textComponent.mesh.vertexCount];
             editedColors = new Color[editedVertices.Length];
 
-            // Create Effect Areas
-            List<CharacterEffectArea>[] areas = FancyTextHelper.CreateEffectAreas(parsedTags, defualtSettings);
-            updateCharacterEffectAreas = areas[0];
-            fixedUpdateCharacterEffectAreas = areas[1];
+            EasyStopwatch createAreasSW = new EasyStopwatch("create parsed text effects");
+            ParsedTextEffects parsedEffects = FancyTextHelper.GetParsedTextEffects(parsedTags, defualtSettings);
+            updateCharacterEffectAreas = parsedEffects.updateTextEffects;
+            fixedUpdateCharacterEffectAreas = parsedEffects.fixedUpdateTextEffects;
+            appearEffectChanges = parsedEffects.textAppearEffects;
+            textAppearPauses = parsedEffects.textPauses;
+            createAreasSW.StopAndLog();
 
             OnNewText?.Invoke();
 
             characterMeshes = FancyTextHelper.CreateCharacterMeshes(noSpacesParsedText, textComponent);
             StartDisplayingText();
+
+            wholeSW.StopAndLog();
+            Debug.Log("------------------------");
         }
 
         public void StartDisplayingText()
@@ -223,7 +233,7 @@ namespace FancyText
 
                 if (currentChar != ' ')
                 {
-                    appearingCharacters.Add(new AppearingCharacter(nonSpaceVisibleCharacters, animationSettings.characterAppearTime));
+                    appearingCharacters.Add(new AppearingCharacter(nonSpaceVisibleCharacters, GetAssignedAppearEffect(nonSpaceVisibleCharacters), animationSettings.characterAppearTime));
                     nonSpaceVisibleCharacters++;
                 }
 
@@ -243,6 +253,11 @@ namespace FancyText
             addTime += animationSettings.GetCharacterDelay(character);
 
             return addTime;
+        }
+
+        FancyTextAppearEffect GetAssignedAppearEffect(int index)
+        {
+            return FancyTextHelper.GetEffectFromAreaList(ref appearEffectChanges, index) ?? animationSettings.appearEffect;
         }
     }
 }

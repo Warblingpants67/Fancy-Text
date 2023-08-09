@@ -12,3 +12,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6ac0882130d58384fbd20168f2fbd18d, type: 3}
   m_Name: Roll Effect
   m_EditorClassIdentifier: 
+  name: Roll

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using TMPro;
 using UnityEngine;
 
@@ -6,22 +7,43 @@ namespace FancyText
 {
     public static class FancyTextHelper
     {
-        public static List<CharacterEffectArea>[] CreateEffectAreas(List<ParsedTag> parsedTags, FancyTextSettingsAsset settingsAsset)
+        public static readonly string[] OtherTags = new string[] { "pause", };
+
+        public static ParsedTextEffects GetParsedTextEffects(List<ParsedTag> parsedTags, FancyTextSettingsAsset settingsAsset)
         {
-            List<CharacterEffectArea> updateArea = new List<CharacterEffectArea>();
-            List<CharacterEffectArea> fixedUpdateArea = new List<CharacterEffectArea>();
+            List<CharacterEffectArea<ResolvedEffect>> updateArea = new List<CharacterEffectArea<ResolvedEffect>>();
+            List<CharacterEffectArea<ResolvedEffect>> fixedUpdateArea = new List<CharacterEffectArea<ResolvedEffect>>();
+            List<CharacterEffectArea<FancyTextAppearEffect>> appearArea = new List<CharacterEffectArea<FancyTextAppearEffect>>();
+            List<TextAppearPause> pauses = new List<TextAppearPause>();
 
             for (int i = 0; i < parsedTags.Count; i++)
             {
-                FancyTextEffect effect = settingsAsset.GetFancyTextEffect(parsedTags[i].EffectName);
+                ParsedTag tag = parsedTags[i];
 
-                CharacterEffectArea newEffectArea = new CharacterEffectArea(effect, parsedTags[i].Parameters, parsedTags[i].ParsedTagStartIndex, parsedTags[i].ParsedTagEndIndex);
+                if (tag.EffectName == OtherTags[0]) // is pause
+                {
+                    pauses.Add(new TextAppearPause(tag.ParsedTagStartIndex, tag.Parameters));
+                }
+                else
+                {
+                    FancyTextEffect effect = settingsAsset.GetFancyTextEffect(tag.EffectName);
 
-                if (effect.runInFixedUpdate) { fixedUpdateArea.Add(newEffectArea); }
-                else { updateArea.Add(newEffectArea); }
+                    if (effect != null) // is effect
+                    {
+                        CharacterEffectArea<ResolvedEffect> newEffectArea = new CharacterEffectArea<ResolvedEffect>(new ResolvedEffect(effect, parsedTags[i].Parameters), parsedTags[i].ParsedTagStartIndex, parsedTags[i].ParsedTagEndIndex);
+
+                        if (effect.runInFixedUpdate) { fixedUpdateArea.Add(newEffectArea); }
+                        else { updateArea.Add(newEffectArea); }
+                    }
+                    else // is appear effect
+                    {
+                        FancyTextAppearEffect appearEffect = settingsAsset.GetFancyTextAppearEffect(tag.EffectName);
+                        appearArea.Add(new CharacterEffectArea<FancyTextAppearEffect>(appearEffect, tag.ParsedTagStartIndex, tag.ParsedTagEndIndex));
+                    }
+                }
             }
 
-            return new List<CharacterEffectArea>[] { updateArea, fixedUpdateArea };
+            return new ParsedTextEffects(updateArea, fixedUpdateArea, appearArea, pauses);
         }
 
         public static CharacterMesh[] CreateCharacterMeshes(string noSpacesParsedText, TextMeshProUGUI textComponent)
@@ -36,6 +58,16 @@ namespace FancyText
             }
 
             return characterMeshes;
+        }
+
+        public static T GetEffectFromAreaList<T>(ref List<CharacterEffectArea<T>> list, int index)
+        {
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (list[i].WithinSpan(index)) { return list[i].effect; }
+            }
+
+            return default(T);
         }
     }
 
@@ -191,31 +223,49 @@ namespace FancyText
     public class AppearingCharacter
     {
         public readonly int meshIndex;
+        public readonly FancyTextAppearEffect appearEffect;
         public readonly float appearTime;
         public float currentTime;
 
-        public AppearingCharacter(int meshIndex, float appearTime)
+        public AppearingCharacter(int meshIndex, FancyTextAppearEffect appearEffect, float appearTime)
         {
-            this.meshIndex = meshIndex; ;
+            this.meshIndex = meshIndex;
+            this.appearEffect = appearEffect;
             this.appearTime = appearTime;
             currentTime = 0;
         }
     }
 
     [System.Serializable]
-    public struct CharacterEffectArea
+    public struct CharacterEffectArea<T>
+    {
+        public T effect;
+        public Vector2Int span;
+
+        public CharacterEffectArea(T effect, int start, int end)
+        {
+            this.effect = effect;
+            span = new Vector2Int(start, end);
+        }
+
+        public bool WithinSpan(int index)
+        {
+            return span.x <= index && span.y >= index;
+        }
+    }
+
+    [System.Serializable]
+    public struct ResolvedEffect
     {
         public FancyTextEffect effect;
         public TextEffectParameter[] givenParameters;
         public float[] resolvedParameters;
-        public Vector2Int span;
 
-        public CharacterEffectArea(FancyTextEffect effect, TextEffectParameter[] parameters, int start, int end)
+        public ResolvedEffect(FancyTextEffect effect, TextEffectParameter[] parameters)
         {
             this.effect = effect;
             givenParameters = parameters;
             resolvedParameters = FancyTextEffect.ResolveParameters(effect.Parameters, givenParameters);
-            span = new Vector2Int(start, end);
         }
     }
 
@@ -272,4 +322,53 @@ namespace FancyText
         }
     }
 
+    public class ParsedTextEffects
+    {
+        public List<CharacterEffectArea<ResolvedEffect>> updateTextEffects;
+        public List<CharacterEffectArea<ResolvedEffect>> fixedUpdateTextEffects;
+        public List<CharacterEffectArea<FancyTextAppearEffect>> textAppearEffects;
+        public List<TextAppearPause> textPauses;
+
+        public ParsedTextEffects(List<CharacterEffectArea<ResolvedEffect>> updateTextEffects, List<CharacterEffectArea<ResolvedEffect>> fixedUpdateTextEffects, List<CharacterEffectArea<FancyTextAppearEffect>> textAppearEffects, List<TextAppearPause> textPauses)
+        {
+            this.updateTextEffects = updateTextEffects;
+            this.fixedUpdateTextEffects = fixedUpdateTextEffects;
+            this.textAppearEffects = textAppearEffects;
+            this.textPauses = textPauses;
+        }
+    }
+
+    public struct TextAppearPause
+    {
+        public readonly int index;
+        public readonly float time;
+
+        public TextAppearPause(int index, TextEffectParameter[] parameters)
+        {
+            this.index = index;
+            if (parameters[0].name.ToLower() == "pause") { time = parameters[0].value; }
+            else { time = 1; }
+        }
+    }
+
+    public class EasyStopwatch
+    {
+        Stopwatch stopwatch;
+        string task;
+
+        public EasyStopwatch(string task)
+        {
+            this.task = task;
+
+            stopwatch = new Stopwatch();
+            stopwatch.Start();
+        }
+
+        public void StopAndLog()
+        {
+            stopwatch.Stop();
+
+            UnityEngine.Debug.Log($"Time to {task}: {stopwatch.ElapsedMilliseconds}ms");
+        }
+    }
 }

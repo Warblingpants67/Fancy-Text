@@ -12,7 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a39f504d989092541b62544053faa4f7, type: 3}
   m_Name: Default FancyText Settings Asset
   m_EditorClassIdentifier: 
-  textAppearEffects: []
+  textAppearEffects:
+  - {fileID: 11400000, guid: b1ad74cf473a4304486cb34f6efdecb1, type: 2}
+  - {fileID: 11400000, guid: a08cbfcb49c90504bbcfc26ce60262be, type: 2}
+  - {fileID: 11400000, guid: 9f6f563cfb759454faccbf1ed5d8c570, type: 2}
+  - {fileID: 11400000, guid: 0f5d80beb14fe244a907dd748f8638dc, type: 2}
+  - {fileID: 11400000, guid: 82072ab15b0344a4c84ee3e2b4337b83, type: 2}
   textEffects:
   - {fileID: 11400000, guid: e1b2678072b792242ad3832793beb149, type: 2}
   - {fileID: 11400000, guid: 88029b8b27911b446a666ad837a68ae1, type: 2}

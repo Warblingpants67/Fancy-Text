@@ -34,7 +34,7 @@ namespace FancyText
             {
                 int tagCloseIndexInUnparsedList = GetFirstClosingTagIndex(unparsedTags);
                 if (tagCloseIndexInUnparsedList == -1) { Debug.LogError("Tag(s) missing closing tag!"); return parsedTags; }
-                string tagName = unparsedTags[tagCloseIndexInUnparsedList].Value.Substring(1);
+                string tagName = unparsedTags[tagCloseIndexInUnparsedList].Value.Substring(1).ToLower();
 
                 int tagOpenIndexInUnparsedList = GetClosestMatchingOpenTag(tagName, tagCloseIndexInUnparsedList, unparsedTags);
                 if (tagOpenIndexInUnparsedList == -1) { Debug.LogError("Tag(s) missing opening tag!"); return parsedTags; }
@@ -67,7 +67,7 @@ namespace FancyText
         {
             for (int i = closeTagIndex - 1; i >= 0; i--)
             {
-                if (TagName(tags[i].Value).Equals(closeTagName) && !IsClosingTag(tags[i].Value))
+                if (TagName(tags[i].Value).Equals(closeTagName, System.StringComparison.CurrentCultureIgnoreCase) && !IsClosingTag(tags[i].Value))
                 {
                     return i;
                 }

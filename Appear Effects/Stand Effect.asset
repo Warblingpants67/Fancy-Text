@@ -12,3 +12,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9c21ab15de00fd540855137597e733ab, type: 3}
   m_Name: Stand Effect
   m_EditorClassIdentifier: 
+  name: Stand

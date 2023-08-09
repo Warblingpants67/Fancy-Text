@@ -12,10 +12,31 @@ namespace FancyText
         public FancyTextAppearEffect[] TextAppearEffects { get { return textAppearEffects; } }
         public FancyTextEffect[] TextEffects { get { return textEffects; } }
 
-        string[] OtherTags = new string[] { "Pause", };
         Dictionary<string, bool> recognizedTags = new Dictionary<string, bool>();
 
+        Dictionary<string, FancyTextAppearEffect> textAppearEffectsDict = new Dictionary<string, FancyTextAppearEffect>();
         Dictionary<string, FancyTextEffect> textEffectsDict = new Dictionary<string, FancyTextEffect>();
+
+        public FancyTextAppearEffect GetFancyTextAppearEffect(string name)
+        {
+            string lowercaseName = name.ToLower();
+            FancyTextAppearEffect desiredEffect = null;
+            if (textAppearEffectsDict.TryGetValue(lowercaseName, out desiredEffect)) { return desiredEffect; }
+            else
+            {
+                for (int i = 0; i < textEffects.Length; i++)
+                {
+                    if (textAppearEffects[i].name.ToLower() == lowercaseName)
+                    {
+                        textAppearEffectsDict.Add(lowercaseName, textAppearEffects[i]);
+                        return textAppearEffects[i];
+                    }
+                }
+            }
+
+            textAppearEffectsDict.Add(lowercaseName, null);
+            return desiredEffect;
+        }
 
         public FancyTextEffect GetFancyTextEffect(string name)
         {
@@ -34,7 +55,7 @@ namespace FancyText
                 }
             }
 
-            Debug.LogError("Could not find text effect with name \"" + name + "\"");
+            textEffectsDict.Add(lowercaseName, null);
             return desiredEffect;
         }
 
@@ -64,9 +85,9 @@ namespace FancyText
                     }
                 }
 
-                for (int i = 0; i < OtherTags.Length; i++)
+                for (int i = 0; i < FancyTextHelper.OtherTags.Length; i++)
                 {
-                    if (lower == OtherTags[i].ToLower())
+                    if (lower == FancyTextHelper.OtherTags[i].ToLower())
                     {
                         recognizedTags.Add(lower, true);
                         return true;

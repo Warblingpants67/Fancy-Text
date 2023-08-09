@@ -6,7 +6,7 @@ namespace FancyText
     {
         public abstract TextEffectParameter[] Parameters { get; }
         [Header("Effect Settings", order = 999)]
-        [Tooltip("The name you will use in Effect tags to use this effect")]
+        [Tooltip("The name you will use in tags to use this effect")]
         [SerializeField] public string name;
         [Tooltip("Whether or not the effect should run in the FixedUpdate loop, or normal Update loop. FixedUpdate is usually chosen when you need something to happen a set amount of times per second.")]
         [SerializeField] public bool runInFixedUpdate;
